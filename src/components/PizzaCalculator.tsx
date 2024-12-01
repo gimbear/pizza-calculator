@@ -139,26 +139,31 @@ const PizzaCalculator = () => {
   // Handle percentage input blur event
   const handlePercentageBlur = (index: number): void => {
     let flourWeightNum = parseFloat(flourWeight) || 0;
-
-    // Recalculate flour weight if in dough balls mode
+  
+    // If in 'doughBalls' mode, calculate flour weight dynamically
     if (activeTab === 'doughBalls') {
       flourWeightNum = calculateFlourWeight();
       setFlourWeight(flourWeightNum.toString());
     }
-
+  
     const updatedIngredients = ingredients.map((ingredient, i) => {
       if (i === index) {
-        let percentage = ingredient.percentage.trim();
-        if (percentage === '') {
-          percentage = '0';
-        }
-        const parsedPercentage = parseFloat(percentage) || 0;
+        const percentageStr = ingredient.percentage.trim();
+        const parsedPercentage = parseFloat(percentageStr) || 0;
         const weight = (parsedPercentage / 100) * flourWeightNum;
-        return { ...ingredient, percentage, weight };
+  
+        return {
+          ...ingredient,
+          percentage: parsedPercentage.toFixed(2), // Ensure valid number as a string
+          weight: parseFloat(weight.toFixed(2)), // Limit weight to 2 decimal places
+        };
       }
       return ingredient;
     });
+  
     setIngredients(updatedIngredients);
+  
+    // Update query params to reflect the change
     updateQueryParams(flourWeight, updatedIngredients, activeTab, numberOfBalls, weightPerBall);
   };
 
@@ -178,18 +183,24 @@ const PizzaCalculator = () => {
   // Handle flour weight blur
   const handleFlourWeightBlur = (): void => {
     let fw = flourWeight.trim();
-    if (fw === '') {
-      fw = '0';
-    }
+    if (fw === '') fw = '0'; // Prevent empty input
     const flourWeightNum = parseFloat(fw) || 0;
+  
     const updatedIngredients = ingredients.map((ingredient) => {
       const parsedPercentage = parseFloat(ingredient.percentage) || 0;
       const weight = (parsedPercentage / 100) * flourWeightNum;
-      return { ...ingredient, weight };
+  
+      return {
+        ...ingredient,
+        weight: parseFloat(weight.toFixed(2)), // Ensure weight is rounded
+      };
     });
+  
     setFlourWeight(fw);
     setIngredients(updatedIngredients);
-    updateQueryParams(fw, ingredients, activeTab, numberOfBalls, weightPerBall);
+  
+    // Update query params
+    updateQueryParams(fw, updatedIngredients, activeTab, numberOfBalls, weightPerBall);
   };
 
   // Handle flour weight key down
@@ -211,16 +222,23 @@ const PizzaCalculator = () => {
   };
 
   // Handle dough balls input blur
-  const handleDoughBallsBlur = () => {
+  const handleDoughBallsBlur = (): void => {
     const flourWeightNum = calculateFlourWeight();
-    setFlourWeight(flourWeightNum.toString());
-    // Recalculate ingredient weights
+  
     const updatedIngredients = ingredients.map((ingredient) => {
       const parsedPercentage = parseFloat(ingredient.percentage) || 0;
       const weight = (parsedPercentage / 100) * flourWeightNum;
-      return { ...ingredient, weight };
+  
+      return {
+        ...ingredient,
+        weight: parseFloat(weight.toFixed(2)), // Ensure weight is valid
+      };
     });
+  
+    setFlourWeight(flourWeightNum.toString());
     setIngredients(updatedIngredients);
+  
+    // Update query params
     updateQueryParams(
       flourWeightNum.toString(),
       updatedIngredients,
@@ -235,17 +253,20 @@ const PizzaCalculator = () => {
     const numBalls = parseFloat(numberOfBalls) || 0;
     const weightBall = parseFloat(weightPerBall) || 0;
     const totalDoughWeight = numBalls * weightBall;
-
+  
+    if (totalDoughWeight === 0) return 0;
+  
     // Sum of ingredient percentages (excluding flour)
     const sumPercentages = ingredients.reduce((sum, ingredient) => {
       const percentage = parseFloat(ingredient.percentage) || 0;
       return sum + percentage / 100;
     }, 0);
-
-    // Flour weight calculation
-    const flourWeightNum = totalDoughWeight / (1 + sumPercentages);
-    return flourWeightNum;
-  };
+  
+    // Avoid division by zero
+    if (1 + sumPercentages === 0) return 0;
+  
+    return totalDoughWeight / (1 + sumPercentages);
+  }, [numberOfBalls, weightPerBall, ingredients]);
 
   // Calculate total weight
   const totalWeight = ingredients.reduce(
